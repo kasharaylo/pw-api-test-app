@@ -66,3 +66,39 @@ test('delete article', async ({page, request}) => {
     await expect(page.getByText('Article to be deleted')).not.toBeVisible(); //
     await page.getByText('Global Feed').click();
 });
+
+test('create article', async ({page, request}) => {
+    await page.getByText('New Article').click();
+    await page.getByRole('textbox', { name: 'Article Title' }).fill('Playwright is awesome!');
+    await page.getByRole('textbox', { name: 'What\'s this article about?' }).fill('About the Playwright');
+    await page.getByRole('textbox', { name: 'Write your article (in markdown)' }).fill('This is a test article created using Playwright');
+    await page.getByRole('button', { name: 'Publish Article' }).click();
+    const articleResponce = await page.waitForResponse('**/api/articles/');
+    const articleResponceBody = await articleResponce.json()
+    const slugId = articleResponceBody.article.slug;
+
+    await expect(page.locator('.article-page h1')).toContainText('Playwright is awesome!');
+
+    await page.getByText('Home').click();
+    await page.getByText('Global Feed').click();
+    
+    await expect(page.getByText('Playwright is awesome!')).toBeVisible();
+
+    const responce = await request.post('https://conduit-api.bondaracademy.com/api/users/login', {
+        data: {
+            "user": {
+                "email": "test@test22.com",
+                "password": "qwerty21"
+            }
+        }
+    })
+    const responceBody = await responce.json();
+    const accessToken = responceBody.user.token;
+
+    const deleteArticleResponce = await request.delete(`https://conduit-api.bondaracademy.com/api/articles/${slugId}`, {
+        headers: {
+            Authorization: `Token ${accessToken}` // Use the token in the request header
+        }
+    });
+    expect(deleteArticleResponce.status()).toBe(204);
+});
